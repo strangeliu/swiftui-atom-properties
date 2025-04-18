@@ -68,20 +68,33 @@ internal struct StoreContext {
 
     @usableFromInline
     func set<Node: StateAtom>(_ value: Node.Produced, for atom: Node) {
-        let (key, _) = lookupAtomKeyAndOverride(of: atom)
+        let (key, override) = lookupAtomKeyAndOverride(of: atom)
 
         if let cache = lookupCache(of: atom, for: key) {
             update(atom: atom, for: key, cache: cache, newValue: value)
+        }
+        else if atom is any KeepAlive {
+            let initialValue = initialize(of: atom, for: key, override: override)
+            if let cache = lookupCache(of: atom, for: key) {
+                update(atom: atom, for: key, cache: cache, newValue: value)
+            }
         }
     }
 
     @usableFromInline
     func modify<Node: StateAtom>(_ atom: Node, body: (inout Node.Produced) -> Void) {
-        let (key, _) = lookupAtomKeyAndOverride(of: atom)
+        let (key, override) = lookupAtomKeyAndOverride(of: atom)
 
         if let cache = lookupCache(of: atom, for: key) {
             let newValue = mutating(cache.value, body)
             update(atom: atom, for: key, cache: cache, newValue: newValue)
+        }
+        else if atom is any KeepAlive {
+            let initialValue = initialize(of: atom, for: key, override: override)
+            if let cache = lookupCache(of: atom, for: key) {
+                let newValue = mutating(cache.value, body)
+                update(atom: atom, for: key, cache: cache, newValue: newValue)
+            }
         }
     }
 
